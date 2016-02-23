@@ -1,10 +1,6 @@
 import dlib
 import functools
-import numpy as np
 import time
-from skimage import io
-from skimage.transform import rescale, resize
-from skimage.viewer import ImageViewer
 
 
 def timeit(func):
