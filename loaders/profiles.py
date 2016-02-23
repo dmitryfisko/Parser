@@ -50,10 +50,11 @@ class ProfilesLoader(object):
             country = profile['country']
             city = profile['city']
 
-            row = cursor.mogrify('(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)',
-                                 (uid, first_name, last_name, sex,
-                                  screen_name, last_seen, bdate,
-                                  verified, followers_count, country, city))
+            row = cursor.mogrify('(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)', (
+                uid, first_name, last_name, sex,
+                screen_name, last_seen, bdate,
+                verified, followers_count, country, city
+            ))
             rows.append(row.decode('utf-8'))
 
         if len(rows) == 0:
