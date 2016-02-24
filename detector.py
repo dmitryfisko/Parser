@@ -1,6 +1,7 @@
 import dlib
 import functools
 import time
+from multiprocessing.dummy import RLock
 
 
 def timeit(func):
@@ -23,6 +24,8 @@ class FaceDetector(object):
         pose_predictor_path = '../dlib/models/shape_predictor_68_face_landmarks.dat'
         self._predictor = dlib.shape_predictor(pose_predictor_path)
         self._win = dlib.image_window()
+        self._lock = RLock()
+
 
     @timeit
     def detect(self, image, landmarks=False, visualize=False):
@@ -30,14 +33,17 @@ class FaceDetector(object):
         # The 1 in the second argument indicates that we should upsample the image
         # 1 time.  This will make everything bigger and allow us to detect more
         # faces.
+        if image is None:
+            return []
 
-        dets, scores, idx = self._detector.run(image, 1)
-        poses = []
-        if landmarks:
-            for det in dets:
-                poses.append(self._predictor(image, det))
-        if visualize:
-            self._visualize(image, dets, poses, scores)
+        with self._lock:
+            dets, scores, idx = self._detector.run(image, 1)
+            poses = []
+            if landmarks:
+                for det in dets:
+                    poses.append(self._predictor(image, det))
+            if visualize:
+                self._visualize(image, dets, poses, scores)
 
         if landmarks:
             return dets, poses

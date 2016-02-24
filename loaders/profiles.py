@@ -8,18 +8,22 @@ import time
 from datetime import date as clock
 import psycopg2
 
-from loaders.vkcoord import VK_ACCESS_TOKEN, Coordinator
+from loaders.vkcoord import VK_ACCESS_TOKEN, VKCoordinator
 
 
 class ProfilesLoader(object):
     VK_SEARCH_API_URL = 'https://api.vk.com/method/users.search'
     CURR_YEAR = clock.today().year
 
-    def _do_search(self, url, coord, cursor, age, month):
-        wait = coord.next_wait_time()
+    def __init__(self, database):
+        self._database = database
+        self._vk_coord = VKCoordinator()
+
+    def _do_search(self, url, age, month):
+        wait = self._vk_coord.next_wait_time()
         while wait != 0:
             time.sleep(wait)
-            wait = coord.next_wait_time()
+            wait = self._vk_coord.next_wait_time()
 
         try:
             response = urlopen(url).read()
@@ -42,7 +46,7 @@ class ProfilesLoader(object):
                 bdate = profile['bdate']
                 if len(bdate) < 8:
                     bdate += '.' + str(self.CURR_YEAR - age)
-            except:
+            except Exception:
                 bdate = '00.%d.%d' % (month, self.CURR_YEAR - age)
 
             verified = True if profile['verified'] == 1 else False
@@ -50,39 +54,31 @@ class ProfilesLoader(object):
             country = profile['country']
             city = profile['city']
 
-            row = cursor.mogrify('(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)', (
+            params = (
                 uid, first_name, last_name, sex,
                 screen_name, last_seen, bdate,
                 verified, followers_count, country, city
-            ))
+            )
+            row = self._database.mogrify(
+                '({})'.format(','.join(['%s'] * len(params))), params)
             rows.append(row.decode('utf-8'))
 
         if len(rows) == 0:
-            return 'failed %s %s' % (age, month)
+            return 'Failed to receive %s %s' % (age, month)
 
-        with coord.lock:
-            fields = 'uid,first_name,last_name,sex,screen_name,last_seen,bdate,verified,followers_count,country,city'
-            start_time = time.time()
-            cursor.execute(
-                u'WITH new_rows ({fields}) AS (VALUES {rows}) '
-                u'INSERT INTO profiles ({fields}) '
-                u'SELECT {fields} '
-                u'FROM new_rows '
-                u'WHERE NOT EXISTS (SELECT uid FROM profiles up WHERE up.uid=new_rows.uid)'.format(
-                    fields=fields, rows=u','.join(rows)
-                ))
-            print("--- %s seconds ---" % (time.time() - start_time))
-
-        return 'ok'
+        start_time = time.time()
+        self._database.insert_profiles()
+        print("--- %s seconds ---" % (time.time() - start_time))
 
     def _do_search_recall(self, params):
         return self._do_search(*params)
 
     def _generate_url(self, age, month):
         params = {'age_from': age, 'age_to': age, 'sort': 0,
-                  'birth_month': month, 'count': 1000,
-                  'fields': 'bdate,screen_name,sex,verified,last_seen,followers_count,country,city',
-                  'has_photo': 1, 'v': '5.45', 'access_token': VK_ACCESS_TOKEN}
+                  'birth_month': month, 'count': 1000, 'has_photo': 1,
+                  'fields': 'bdate,screen_name,sex,verified,'
+                            'last_seen,followers_count,country,city',
+                  'v': '5.45', 'access_token': VK_ACCESS_TOKEN}
 
         url_parts = list(urlparser.urlparse(self.VK_SEARCH_API_URL))
         query = dict(urlparser.parse_qsl(url_parts[4]))
@@ -96,16 +92,18 @@ class ProfilesLoader(object):
     def _get_search_iterator(self, coord, db_cursor):
         for age in range(65, 17, -1):
             for month in range(12, 0, -1):
-                yield (self._generate_url(age, month), coord, db_cursor, age, month)
+                yield (self._generate_url(age, month),
+                       coord, db_cursor, age, month)
 
     def load(self):
         pool = ThreadPool(5)
-        coord = Coordinator()
+        coord = VKCoordinator()
         conn = psycopg2.connect(user='postgres', password='password',
                                 database='users', host='localhost')
         conn.autocommit = True
         cursor = conn.cursor()
-        results = pool.map(self._do_search_recall, self._get_search_iterator(coord, cursor))
+        results = pool.map(self._do_search_recall,
+                           self._get_search_iterator(coord, cursor))
 
         for result in results:
             print(result)

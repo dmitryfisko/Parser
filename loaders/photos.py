@@ -1,183 +1,26 @@
-import httplib
-import os
-import re
-import threading
 import Queue
-import json
-from skimage import io
 
-import numpy as np
-from urllib2 import urlopen, HTTPError, URLError
-import urlparse as urlparser
-import urllib
-from multiprocessing.dummy import Pool as ThreadPool
-
-import psycopg2
-import time
-
-from PIL import Image
-
-from loaders.vkcoord import Coordinator, VK_ACCESS_TOKEN
+from loaders.photostask import PhotosTask
+from loaders.vkcoord import VKCoordinator
 
 
 class PhotosLoader(object):
-    #TODO set 24 USERS_PER_REQUEST
-    USERS_PER_REQUEST = 1
+    USERS_PER_REQUEST = 24
 
-    def __init__(self, face_detector, face_representer):
+    def __init__(self, database, face_detector, face_representer):
+        self._database = database
         self._representer = face_representer
         self._detector = face_detector
-
-    class Consumer(threading.Thread):
-        VK_PHOTOS_API_URL = 'https://api.vk.com/method/execute.getProfilePhotos'
-        FACE_SAVE_PATH = '/home/user/faces'
-
-        def __init__(self, queue, cursor, coord, face_detector, face_representer):
-            threading.Thread.__init__(self)
-            self._queue = queue
-            self._cursor = cursor
-            self._coord = coord
-            self._detector = face_detector
-            self._representer = face_representer
-
-        class Photo(object):
-            pass
-
-        @staticmethod
-        def _download_image(url):
-            try:
-                image = io.imread(url)
-            except HTTPError:
-                print ('image downloading HTTPError')
-                return None
-            except httplib.HTTPException:
-                print ('image downloading HTTPException')
-                return None
-            except Exception:
-                print ('image downloading error')
-                return None
-
-            return image
-
-        def _save_face(self, image, face, owner_id, photo_id):
-            face = image[face.top():face.bottom(), face.left():face.right()]
-            im = Image.fromarray(np.uint8(face))
-
-            owner_id_norm = '{0:09d}'.format(owner_id)
-            photo_id_norm = '{0:010d}'.format(photo_id)
-            dirs = '/'.join(re.findall('...', owner_id_norm))
-            directory = self.FACE_SAVE_PATH + '/' + dirs
-
-            if not os.path.exists(directory):
-                os.makedirs(directory)
-
-            path = directory + '/' + owner_id_norm + '_' + photo_id_norm + '.jpg'
-            im.save(path)
-
-            return path
-
-        def _generate_url(self, user_ids):
-            user_ids = [str(user_id) for user_id in user_ids]
-            params = {'user_ids': ','.join(user_ids), 'v': '5.45',
-                      'access_token': VK_ACCESS_TOKEN}
-
-            url_parts = list(urlparser.urlparse(self.VK_PHOTOS_API_URL))
-            query = dict(urlparser.parse_qsl(url_parts[4]))
-            query.update(params)
-
-            url_parts[4] = urllib.urlencode(query)
-
-            print(urlparser.urlunparse(url_parts))
-            return urlparser.urlunparse(url_parts)
-
-        def run(self):
-            while True:
-                user_ids = self._queue.get()
-                if isinstance(user_ids, str) and user_ids == 'quit':
-                    break
-
-                try:
-                    response = urlopen(self._generate_url(user_ids)).read()
-                    #TODO request time limit
-                    users_photos = json.loads(response.decode('utf-8'))['response']
-                except HTTPError:
-                    users_photos = []
-                except URLError:
-                    users_photos = []
-                except ValueError:
-                    users_photos = []
-
-                photos = []
-                photos_urls = []
-                for user_photos in users_photos:
-                    for user_photo in user_photos:
-                        photo = self.Photo()
-                        photo.owner_id = user_photo['owner_id']
-                        photo.photo_id = user_photo['photo_id']
-                        photo.likes = user_photo['likes']
-                        photo.date = user_photo['date']
-                        photo.url = user_photo['photo']
-                        photos.append(photo)
-
-                        photos_urls.append(photo.url)
-
-                pool = ThreadPool(20)
-                images = pool.map(self._download_image, photos_urls)
-                pool.close()
-                pool.join()
-
-                images_iter = iter(images)
-                for photo in photos:
-                    image = next(images_iter)
-                    faces = self._detector.detect(image)
-                    if len(faces) == 1:
-                        photo.embedding = self._representer.represent(image, faces[0])
-                        photo.path = self._save_face(
-                            image, faces[0], photo.owner_id, photo.photo_id)
-                    else:
-                        photo.embedding = None
-
-                with self._coord.lock:
-                    fields = 'owner_id,photo_id,likes,date,photo_path,photo_url,embedding'
-                    rows = []
-                    for photo in photos:
-                        if photo.embedding is None:
-                            continue
-                        row = self._cursor.mogrify('(%s,%s,%s,%s,%s,%s,%s)', (
-                            photo.owner_id, photo.photo_id, photo.likes, photo.date,
-                            photo.path, photo.url, photo.embedding.tolist()
-                        ))
-                        rows.append(row.decode('utf-8'))
-                    start_time = time.time()
-                    self._cursor.execute(
-                        u'WITH new_rows ({fields}) AS (VALUES {rows}) '
-                        u'INSERT INTO photos ({fields}) '
-                        u'SELECT {fields} '
-                        u'FROM new_rows '
-                        u'WHERE NOT EXISTS (SELECT photo_id FROM photos up WHERE up.photo_id=new_rows.photo_id)'.format(
-                            fields=fields, rows=u','.join(rows)
-                        ))
-                    print("faces added --- %s seconds ---" % (time.time() - start_time))
-
-            print 'Thread closed'
+        self._vk_coord = VKCoordinator()
 
     def start(self):
-        conn = psycopg2.connect(user='postgres', password='password',
-                                database='users', host='localhost')
-        conn.autocommit = True
-        cursor = conn.cursor()
-
-        coord = Coordinator()
         queue = Queue.Queue(maxsize=100)
-        #TODO set 20 worker_threads
-        worker_threads = self._build_worker_pool(queue, 1, cursor, coord)
+        worker_threads = self._build_worker_pool(queue, 5)
 
         offset = 0
         while True:
-            cursor.execute('SELECT uid FROM profiles LIMIT {limit} OFFSET {offset}'.format(
-                limit=self.USERS_PER_REQUEST, offset=offset
-            ))
-            user_ids = [user_id[0] for user_id in cursor.fetchall()]
+            user_ids = self._database.profiles_pagination(
+                limit=self.USERS_PER_REQUEST, offset=offset)
 
             if len(user_ids) == 0:
                 break
@@ -190,14 +33,11 @@ class PhotosLoader(object):
         for worker in worker_threads:
             worker.join()
 
-        conn.commit()
-        cursor.close()
-        conn.close()
-
-    def _build_worker_pool(self, queue, size, cursor, coord):
+    def _build_worker_pool(self, queue, size):
         workers = []
         for _ in range(size):
-            worker = self.Consumer(queue, cursor, coord, self._detector, self._representer)
+            worker = PhotosTask(queue, self._vk_coord, self._database,
+                                self._detector, self._representer)
             worker.start()
             workers.append(worker)
         return workers

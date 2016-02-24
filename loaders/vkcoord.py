@@ -8,7 +8,7 @@ VK_OATH2_URL = 'https://oauth.vk.com/authorize?client_id=5236630&display=page&' 
 VK_ACCESS_TOKEN = '11a912bc7ddc439822f562f177cf6e6365fcbe3cc2d99f22d2567dbfa9e65569a02d1409dbc85f80f85f2'
 
 
-class Coordinator:
+class VKCoordinator:
     def __init__(self):
         self._prev_time = 0
         self._request_delay = 0.4
