@@ -1,10 +1,15 @@
 from skimage import io
 
 from detector import FaceDetector
+from loaders.photos import PhotosLoader
 from loaders.profiles import ProfilesLoader
+from representer import FaceRepresenter
 
 if __name__ == '__main__':
-    ProfilesLoader().load()
+    # ProfilesLoader().load()
+    detector = FaceDetector()
+    representer = FaceRepresenter()
+    PhotosLoader(detector, representer).start()
 
     '''
     img = io.imread('imgs/durov.jpg')

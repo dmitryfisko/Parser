@@ -82,7 +82,7 @@ class ProfilesLoader(object):
         params = {'age_from': age, 'age_to': age, 'sort': 0,
                   'birth_month': month, 'count': 1000,
                   'fields': 'bdate,screen_name,sex,verified,last_seen,followers_count,country,city',
-                  'has_photo': 1, 'access_token': VK_ACCESS_TOKEN}
+                  'has_photo': 1, 'v': '5.45', 'access_token': VK_ACCESS_TOKEN}
 
         url_parts = list(urlparser.urlparse(self.VK_SEARCH_API_URL))
         query = dict(urlparser.parse_qsl(url_parts[4]))

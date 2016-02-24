@@ -5,7 +5,7 @@ import openface
 
 class FaceRepresenter(object):
     NET_INPUT_DIM = 96
-    MODEL_DIR = 'openface/models'
+    MODEL_DIR = '../openface/models'
 
     def __init__(self):
         dlib_model_path = os.path.join(

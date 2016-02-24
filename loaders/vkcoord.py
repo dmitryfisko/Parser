@@ -4,8 +4,8 @@ from multiprocessing.dummy import RLock
 
 
 VK_OATH2_URL = 'https://oauth.vk.com/authorize?client_id=5236630&display=page&' \
-               'redirect_uri=http://fisko.me/callback&scope=offline&response_type=token'
-VK_ACCESS_TOKEN = 'bcc4ac7458aa17e37a3fea08102d86afe83875cdd89338c4efb22c6341257d302648583adbd55bcad9352'
+               'redirect_uri=http://fisko.me/callback&scope=offline,photos&response_type=token'
+VK_ACCESS_TOKEN = '11a912bc7ddc439822f562f177cf6e6365fcbe3cc2d99f22d2567dbfa9e65569a02d1409dbc85f80f85f2'
 
 
 class Coordinator:
