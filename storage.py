@@ -3,12 +3,31 @@ import pickle
 
 
 class Storage(object):
+    STORAGE_PATH = 'storage.dat'
+
     def __init__(self):
-        self._container = dict()
-        self._STORAGE_PATH = 'storage.dat'
+        self._container = self._load()
+        if self._container is None:
+            self._container = dict()
+
+    def __del__(self):
+        self._save()
 
     def __getitem__(self, key):
-        return self._container[key]
+        if key in self._container:
+            return self._container[key]
+        else:
+            return []
+
+    def add_to_key(self, key, value, value_type=None):
+        if key not in self._container:
+            if value_type is None:
+                self._container[key] = value
+            else:
+                self._container[key] = value_type()
+                self._container[key].add(value)
+        else:
+            self._container[key].add(value)
 
     def set(self, key, value):
         self._container[key] = value
@@ -16,16 +35,16 @@ class Storage(object):
     def remove(self, key):
         self._container[key] = None
 
-    def load(self):
-        if os.path.exists(self._STORAGE_PATH):
+    def _load(self):
+        if os.path.exists(self.STORAGE_PATH):
             try:
-                with open(self._STORAGE_PATH, 'rb') as f:
-                    self._container = pickle.load(f)
+                with open(self.STORAGE_PATH, 'rb') as f:
+                    return pickle.load(f)
             except:
-                raise ValueError('Bad data file schema')
+                return None
         else:
-            raise IOError('File not exist')
+            return None
 
-    def save(self):
-        with open(self._STORAGE_PATH, 'wb') as f:
+    def _save(self):
+        with open(self.STORAGE_PATH, 'wb') as f:
             pickle.dump(self._container, f)

@@ -1,5 +1,6 @@
 import httplib
 import json
+import logging
 import os
 import re
 import threading
@@ -20,6 +21,9 @@ from loaders.vkcoord import VK_ACCESS_TOKEN
 class PhotosTask(threading.Thread):
     VK_PHOTOS_API_URL = 'https://api.vk.com/method/execute.getProfilePhotos'
     FACE_SAVE_PATH = '/home/user/faces'
+    PHOTOS_REQUEST_TIMEOUT = 3
+    IMAGE_REQUEST_TIMEOUT = 3
+    IMAGES_LOADER_POOL_SIZE = 20
 
     def __init__(self, queue, vk_coord, database, face_detector, face_representer):
         threading.Thread.__init__(self)
@@ -32,10 +36,9 @@ class PhotosTask(threading.Thread):
     class Photo(object):
         pass
 
-    @staticmethod
-    def _download_image(url):
+    def _download_image(self, url):
         try:
-            image = io.imread(url, timeout=3)
+            image = io.imread(url, timeout=self.IMAGE_REQUEST_TIMEOUT)
         except HTTPError:
             print ('Image downloading HTTPError')
             return None
@@ -108,15 +111,25 @@ class PhotosTask(threading.Thread):
                 wait = self._vk_coord.next_wait_time()
 
             try:
-                response = urlopen(self._generate_url(user_ids), timeout=3).read()
+                request_url = self._generate_url(user_ids)
+                response = urlopen(request_url,
+                                   timeout=self.PHOTOS_REQUEST_TIMEOUT).read()
                 users_photos = json.loads(response.decode('utf-8'))['response']
+            except ValueError:
+                logging.error(u"Photos request failed "
+                              u"to parse response of url: {}".format(request_url))
+                users_photos = []
             except HTTPError:
+                logging.error("Photos request HTTPException")
                 users_photos = []
             except httplib.HTTPException:
+                logging.error("Photos request HTTPException")
                 users_photos = []
             except timeout:
+                logging.error("Photos request timeout")
                 users_photos = []
             except Exception:
+                logging.exception("Photos request unknown exception")
                 users_photos = []
 
             photos = []
@@ -133,7 +146,7 @@ class PhotosTask(threading.Thread):
 
                     photos_urls.append(photo.url)
 
-            pool = ThreadPool(20)
+            pool = ThreadPool(self.IMAGES_LOADER_POOL_SIZE)
             images = pool.map(self._download_image, photos_urls)
             pool.close()
             pool.join()
@@ -144,17 +157,21 @@ class PhotosTask(threading.Thread):
                 faces = self._detector.detect(image)
                 if len(faces) == 1 and self._check_boundary(image, faces[0]):
                     face = faces[0]
-                    photo.embedding = self._representer.represent(image, face)
-                    photo.boundary = [face.top, face.right, face.bottom, face.left]
+                    photo.boundary = [face.top(), face.right(), face.bottom(), face.left()]
                     photo.path = self._save_face(
                         image, face, photo.owner_id, photo.photo_id)
+                    if self._representer is not None:
+                        photo.embedding = self._representer.represent(image, face)
+                    else:
+                        photo.embedding = np.array([0.])
                 else:
-                    photo.embedding = None
+                    photo.boundary = None
 
             rows = []
             for photo in photos:
-                if photo.embedding is None:
+                if photo.boundary is None:
                     continue
+
                 params = (
                     photo.owner_id, photo.photo_id, photo.likes,
                     photo.date, photo.boundary, photo.path,
@@ -164,8 +181,6 @@ class PhotosTask(threading.Thread):
                     '({})'.format(','.join(['%s'] * len(params))), params)
                 rows.append(row.decode('utf-8'))
             if len(rows) > 0:
-                start_time = time.time()
                 self._database.insert_photos(rows=rows)
-                print("faces added --- %s seconds ---" % (time.time() - start_time))
 
-        print 'Thread closed'
+        logging.info('PhotoTask thread close')

@@ -1,4 +1,5 @@
 import Queue
+import logging
 
 from loaders.photostask import PhotosTask
 from loaders.vkcoord import VKCoordinator
@@ -6,6 +7,8 @@ from loaders.vkcoord import VKCoordinator
 
 class PhotosLoader(object):
     USERS_PER_REQUEST = 24
+    QUEUE_MAX_SIZE = 100
+    WORKER_POOL_SIZE = 5
 
     def __init__(self, database, face_detector, face_representer):
         self._database = database
@@ -14,8 +17,8 @@ class PhotosLoader(object):
         self._vk_coord = VKCoordinator()
 
     def start(self):
-        queue = Queue.Queue(maxsize=100)
-        worker_threads = self._build_worker_pool(queue, 5)
+        queue = Queue.Queue(maxsize=self.QUEUE_MAX_SIZE)
+        worker_threads = self._build_worker_pool(queue, self.WORKER_POOL_SIZE)
 
         offset = 0
         while True:

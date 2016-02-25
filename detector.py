@@ -37,7 +37,7 @@ class FaceDetector(object):
             return []
 
         with self._lock:
-            dets, scores, idx = self._detector.run(image, 1)
+            dets, scores, idx = self._detector.run(image)
             poses = []
             if landmarks:
                 for det in dets:

@@ -1,15 +1,23 @@
-from skimage import io
+import logging
 
+from database import Database
 from detector import FaceDetector
 from loaders.photos import PhotosLoader
 from loaders.profiles import ProfilesLoader
 from representer import FaceRepresenter
+from storage import Storage
 
 if __name__ == '__main__':
-    # ProfilesLoader().load()
+    logging.basicConfig(format=u'%(filename)s[LINE:%(lineno)d]# '
+                               u'%(levelname)-8s [%(threadName)s]  %(message)s',
+                        level=logging.DEBUG, filename=u'app.logs')
+
+    database = Database()
+    storage = Storage()
     detector = FaceDetector()
     representer = FaceRepresenter()
-    PhotosLoader(detector, representer).start()
+    ProfilesLoader(database, storage).load()
+    # PhotosLoader(database, detector, None).start()
 
     '''
     img = io.imread('imgs/durov.jpg')
@@ -19,5 +27,3 @@ if __name__ == '__main__':
     detector.detect(img)
     detector.detect(img2)
     detector.detect(img3, visualize=True) '''
-
-

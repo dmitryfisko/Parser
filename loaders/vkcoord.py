@@ -11,7 +11,7 @@ VK_ACCESS_TOKEN = '11a912bc7ddc439822f562f177cf6e6365fcbe3cc2d99f22d2567dbfa9e65
 class VKCoordinator:
     def __init__(self):
         self._prev_time = 0
-        self._request_delay = 0.4
+        self._vk_requests_delay = 1
         self.lock = RLock()
 
     def next_wait_time(self):
@@ -19,8 +19,8 @@ class VKCoordinator:
             curr_time = time.time()
             passed_time = curr_time - self._prev_time
 
-            if passed_time >= self._request_delay:
+            if passed_time >= self._vk_requests_delay:
                 self._prev_time = curr_time
                 return 0
             else:
-                return self._request_delay - passed_time
+                return self._vk_requests_delay - passed_time
