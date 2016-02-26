@@ -1,13 +1,17 @@
-import httplib
 import json
 import logging
+import re
 import time
-import urllib
-import urlparse as urlparser
-from _socket import timeout
 from datetime import date as clock
 from multiprocessing.dummy import Pool as ThreadPool
-from urllib2 import urlopen, HTTPError
+
+from urllib import parse as urlparser
+from urllib.request import urlopen
+from urllib.parse import urlencode
+
+from urllib.error import HTTPError
+from _socket import timeout
+from http.client import HTTPException
 
 from loaders.vkcoord import VK_ACCESS_TOKEN, VKCoordinator
 
@@ -16,11 +20,51 @@ class ProfilesLoader(object):
     VK_SEARCH_API_URL = 'https://api.vk.com/method/users.search'
     STORAGE_KEY = 'SEARCH_SUCCESS_REQUEST_PARAMS'
     CURR_YEAR = clock.today().year
+    PROFILES_CHECK_REQUEST_SIZE = 10000
+    PROCESSED_COLUMN = False
 
     def __init__(self, database, storage):
         self._database = database
         self._storage = storage
         self._vk_coord = VKCoordinator()
+
+    @staticmethod
+    def _check_name(first_name, last_name):
+        name = first_name + ' ' + last_name
+        name = name.lower()
+        banned_words = ['порно', 'cекс', 'лесби', 'пидор']
+        # russian belorussian ukrainian english
+        if re.match('^[а-яёа-зй-шы-яіўа-щьюяїєґa-z]+ '
+                    '[а-яёа-зй-шы-яіўа-щьюяїєґa-z]+'
+                    '(( +)\([а-яёа-зй-шы-яіўа-щьюяїєґa-z]+\))?'
+                    '(( *\-* *)[а-яёа-зй-шы-яіўа-щьюяїєґa-z]+)?$', name) and \
+                not any(banned in name for banned in banned_words):
+            return True
+        else:
+            return False
+
+    def cleanup_db(self):
+        offset = 0
+        while True:
+            rows = self._database.profiles_pagination(
+                offset, self.PROFILES_CHECK_REQUEST_SIZE,
+                skip_processed_ids=False, columns=[0, 1, 2])
+
+            if len(rows) == 0:
+                break
+
+            remove_ids = []
+            for row in rows:
+                id, first_name, last_name = row
+                if self._check_name(first_name, last_name):
+                    continue
+
+                logging.warning('Wrong user name: {} {} {}'
+                                .format(id, first_name, last_name))
+                remove_ids.append(id)
+            self._database.remove_profiles(remove_ids)
+            offset += len(remove_ids)
+            offset += self.PROFILES_CHECK_REQUEST_SIZE - len(remove_ids)
 
     def _do_search(self, request_url, age, month):
         wait = self._vk_coord.next_wait_time()
@@ -38,7 +82,7 @@ class ProfilesLoader(object):
         except HTTPError:
             logging.error("Profiles request HTTPException")
             data = []
-        except httplib.HTTPException:
+        except HTTPException:
             logging.error("Profiles request HTTPException")
             data = []
         except timeout:
@@ -70,14 +114,12 @@ class ProfilesLoader(object):
             country = profile['country']['id'] if 'country' in profile else -1
             city = profile['city']['id'] if 'city' in profile else -1
 
-            params = (
+            row = (
                 owner_id, first_name, last_name, sex,
-                screen_name, last_seen, bdate,
-                verified, followers_count, country, city
+                screen_name, last_seen, bdate, verified,
+                followers_count, country, city, self.PROCESSED_COLUMN
             )
-            row = self._database.mogrify(
-                '({})'.format(','.join(['%s'] * len(params))), params)
-            rows.append(row.decode('utf-8'))
+            rows.append(row)
 
         if len(rows) == 0:
             logging.warning(
@@ -88,9 +130,6 @@ class ProfilesLoader(object):
         self._storage.add_to_key(self.STORAGE_KEY, (age, month), value_type=set)
 
         logging.info('Profiles with age {} month {} processed'.format(age, month))
-
-    def _do_search_recall(self, params):
-        return self._do_search(*params)
 
     def _generate_url(self, age, month):
         params = {'age_from': age, 'age_to': age, 'sort': 0,
@@ -103,16 +142,16 @@ class ProfilesLoader(object):
         query = dict(urlparser.parse_qsl(url_parts[4]))
         query.update(params)
 
-        url_parts[4] = urllib.urlencode(query)
+        url_parts[4] = urlencode(query)
 
         print(urlparser.urlunparse(url_parts))
         return urlparser.urlunparse(url_parts)
 
     def _get_search_iterator(self):
         # age param in search {65 ... 18}
-        for age in xrange(65, 17, -1):
+        for age in range(65, 17, -1):
             # month param in search {12 ... 1}
-            for month in xrange(12, 0, -1):
+            for month in range(12, 0, -1):
                 if (age, month) in self._storage[self.STORAGE_KEY]:
                     continue
                 yield (self._generate_url(age, month), age, month)
@@ -120,8 +159,11 @@ class ProfilesLoader(object):
     def load(self):
         pool = ThreadPool(5)
 
-        pool.map(self._do_search_recall,
-                 self._get_search_iterator())
+        pool.starmap(self._do_search,
+                     self._get_search_iterator())
 
         pool.close()
         pool.join()
+
+        self.cleanup_db()
+        self._storage.save()

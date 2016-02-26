@@ -1,15 +1,18 @@
-import httplib
 import json
 import logging
 import os
 import re
 import threading
 import time
-import urllib
-import urlparse as urlparser
-from _socket import timeout
 from multiprocessing.dummy import Pool as ThreadPool
-from urllib2 import urlopen, HTTPError
+
+from urllib import parse as urlparser
+from urllib.request import urlopen
+from urllib.parse import urlencode
+
+from urllib.error import HTTPError
+from _socket import timeout
+from http.client import HTTPException
 
 import numpy as np
 from PIL import Image
@@ -25,9 +28,9 @@ class PhotosTask(threading.Thread):
     IMAGE_REQUEST_TIMEOUT = 3
     IMAGES_LOADER_POOL_SIZE = 20
 
-    def __init__(self, queue, vk_coord, database, face_detector, face_representer):
+    def __init__(self, que, vk_coord, database, face_detector, face_representer):
         threading.Thread.__init__(self)
-        self._queue = queue
+        self._queue = que
         self._vk_coord = vk_coord
         self._database = database
         self._detector = face_detector
@@ -40,20 +43,20 @@ class PhotosTask(threading.Thread):
         try:
             image = io.imread(url, timeout=self.IMAGE_REQUEST_TIMEOUT)
         except HTTPError:
-            print ('Image downloading HTTPError')
+            logging.warning('Image downloading HTTPError')
             return None
-        except httplib.HTTPException:
-            print ('Image downloading HTTPException')
+        except HTTPException:
+            logging.warning('Image downloading HTTPException')
             return None
         except timeout:
-            print ('Image downloading timeout')
+            logging.warning('Image downloading timeout')
             return None
         except Exception:
-            print ('Image downloading error')
+            logging.exception('Image downloading unknown error')
             return None
 
         if len(image.shape) != 3 or (image.shape[2] not in [3, 4]):
-            print ('Wrong image color type')
+            logging.warning('Downloaded image has wrong image depth')
             return None
 
         return image
@@ -95,7 +98,7 @@ class PhotosTask(threading.Thread):
         query = dict(urlparser.parse_qsl(url_parts[4]))
         query.update(params)
 
-        url_parts[4] = urllib.urlencode(query)
+        url_parts[4] = urlencode(query)
 
         print(urlparser.urlunparse(url_parts))
         return urlparser.urlunparse(url_parts)
@@ -110,8 +113,8 @@ class PhotosTask(threading.Thread):
                 time.sleep(wait)
                 wait = self._vk_coord.next_wait_time()
 
+            request_url = self._generate_url(user_ids)
             try:
-                request_url = self._generate_url(user_ids)
                 response = urlopen(request_url,
                                    timeout=self.PHOTOS_REQUEST_TIMEOUT).read()
                 users_photos = json.loads(response.decode('utf-8'))['response']
@@ -122,7 +125,7 @@ class PhotosTask(threading.Thread):
             except HTTPError:
                 logging.error("Photos request HTTPException")
                 users_photos = []
-            except httplib.HTTPException:
+            except HTTPException:
                 logging.error("Photos request HTTPException")
                 users_photos = []
             except timeout:
@@ -134,6 +137,7 @@ class PhotosTask(threading.Thread):
 
             photos = []
             photos_urls = []
+            owner_ids = []
             for user_photos in users_photos:
                 for user_photo in user_photos:
                     photo = self.Photo()
@@ -145,6 +149,7 @@ class PhotosTask(threading.Thread):
                     photos.append(photo)
 
                     photos_urls.append(photo.url)
+                owner_ids.append(photos[-1].owner_id)
 
             pool = ThreadPool(self.IMAGES_LOADER_POOL_SIZE)
             images = pool.map(self._download_image, photos_urls)
@@ -172,15 +177,14 @@ class PhotosTask(threading.Thread):
                 if photo.boundary is None:
                     continue
 
-                params = (
+                row = (
                     photo.owner_id, photo.photo_id, photo.likes,
                     photo.date, photo.boundary, photo.path,
                     photo.url, photo.embedding.tolist()
                 )
-                row = self._database.mogrify(
-                    '({})'.format(','.join(['%s'] * len(params))), params)
-                rows.append(row.decode('utf-8'))
+                rows.append(row)
             if len(rows) > 0:
                 self._database.insert_photos(rows=rows)
+                self._database.mark_processed_profiles(mark_ids=owner_ids)
 
         logging.info('PhotoTask thread close')

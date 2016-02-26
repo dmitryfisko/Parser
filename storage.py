@@ -10,9 +10,6 @@ class Storage(object):
         if self._container is None:
             self._container = dict()
 
-    def __del__(self):
-        self._save()
-
     def __getitem__(self, key):
         if key in self._container:
             return self._container[key]
@@ -40,11 +37,11 @@ class Storage(object):
             try:
                 with open(self.STORAGE_PATH, 'rb') as f:
                     return pickle.load(f)
-            except:
+            except Exception:
                 return None
         else:
             return None
 
-    def _save(self):
+    def save(self):
         with open(self.STORAGE_PATH, 'wb') as f:
             pickle.dump(self._container, f)

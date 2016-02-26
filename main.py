@@ -10,14 +10,15 @@ from storage import Storage
 if __name__ == '__main__':
     logging.basicConfig(format=u'%(filename)s[LINE:%(lineno)d]# '
                                u'%(levelname)-8s [%(threadName)s]  %(message)s',
-                        level=logging.DEBUG, filename=u'app.logs')
+                        level=logging.DEBUG, filename=u'app.logs', filemode='w')
 
     database = Database()
     storage = Storage()
     detector = FaceDetector()
-    representer = FaceRepresenter()
-    ProfilesLoader(database, storage).load()
-    # PhotosLoader(database, detector, None).start()
+    # representer = FaceRepresenter()
+    # ProfilesLoader(database, storage).load()
+    PhotosLoader(database, detector, None).start()
+    # PhotosLoader(database, None, None).start()
 
     '''
     img = io.imread('imgs/durov.jpg')

@@ -1,3 +1,5 @@
+import logging
+
 import dlib
 import functools
 import time
@@ -12,20 +14,20 @@ def timeit(func):
         elapsed_time = time.time() - start_time
         skip_param = 'visualize'
         if skip_param not in kwargs or not kwargs['visualize']:
-            print('function [{}] finished in {} ms'.format(
+            logging.info('function [{}] finished in {} ms'.format(
                 func.__name__, int(elapsed_time * 1000)))
         return results
+
     return new_func
 
 
 class FaceDetector(object):
     def __init__(self):
         self._detector = dlib.get_frontal_face_detector()
-        pose_predictor_path = '../dlib/models/shape_predictor_68_face_landmarks.dat'
+        pose_predictor_path = '../models/dlib/shape_predictor_68_face_landmarks.dat'
         self._predictor = dlib.shape_predictor(pose_predictor_path)
         self._win = dlib.image_window()
         self._lock = RLock()
-
 
     @timeit
     def detect(self, image, landmarks=False, visualize=False):
