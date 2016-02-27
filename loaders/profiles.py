@@ -156,7 +156,7 @@ class ProfilesLoader(object):
                     continue
                 yield (self._generate_url(age, month), age, month)
 
-    def load(self):
+    def start(self):
         pool = ThreadPool(5)
 
         pool.starmap(self._do_search,

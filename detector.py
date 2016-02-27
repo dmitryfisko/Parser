@@ -22,11 +22,14 @@ def timeit(func):
 
 
 class FaceDetector(object):
+    SERVER_NO_GUI_MODE = True
+
     def __init__(self):
         self._detector = dlib.get_frontal_face_detector()
         pose_predictor_path = '../models/dlib/shape_predictor_68_face_landmarks.dat'
         self._predictor = dlib.shape_predictor(pose_predictor_path)
-        self._win = dlib.image_window()
+        if not self.SERVER_NO_GUI_MODE:
+            self._win = dlib.image_window()
         self._lock = RLock()
 
     @timeit
@@ -35,6 +38,8 @@ class FaceDetector(object):
         # The 1 in the second argument indicates that we should upsample the image
         # 1 time.  This will make everything bigger and allow us to detect more
         # faces.
+        assert not self.SERVER_NO_GUI_MODE or not visualize
+
         if image is None:
             return []
 
@@ -58,9 +63,10 @@ class FaceDetector(object):
             print("Detection {} score: {:.2f}: Left: {} Top: {} Right: {} Bottom: {}".format(
                 i, scores[i], d.left(), d.top(), d.right(), d.bottom()))
 
-        self._win.clear_overlay()
-        self._win.set_image(image)
-        for pose in poses:
-            self._win.add_overlay(pose)
-        self._win.add_overlay(dets)
-        dlib.hit_enter_to_continue()
+        if not self.SERVER_NO_GUI_MODE:
+            self._win.clear_overlay()
+            self._win.set_image(image)
+            for pose in poses:
+                self._win.add_overlay(pose)
+            self._win.add_overlay(dets)
+            dlib.hit_enter_to_continue()

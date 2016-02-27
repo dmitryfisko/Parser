@@ -8,6 +8,8 @@ from multiprocessing.dummy import RLock
 
 
 def synchronized(func):
+    logging.debug('Entering in database operation')
+
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
         with self._lock:
@@ -55,6 +57,7 @@ class Database(object):
 
     @synchronized
     def remove_profiles(self, remove_ids):
+        self._conn.commit()
         if len(remove_ids) == 0:
             return
 

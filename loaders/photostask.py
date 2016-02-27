@@ -23,9 +23,9 @@ from loaders.vkcoord import VK_ACCESS_TOKEN
 
 class PhotosTask(threading.Thread):
     VK_PHOTOS_API_URL = 'https://api.vk.com/method/execute.getProfilePhotos'
-    FACE_SAVE_PATH = '/home/user/faces'
+    FACE_SAVE_PATH = '../../faces'
     PHOTOS_REQUEST_TIMEOUT = 3
-    IMAGE_REQUEST_TIMEOUT = 3
+    IMAGE_REQUEST_TIMEOUT = 10
     IMAGES_LOADER_POOL_SIZE = 20
 
     def __init__(self, que, vk_coord, database, face_detector, face_representer):
@@ -113,6 +113,8 @@ class PhotosTask(threading.Thread):
                 time.sleep(wait)
                 wait = self._vk_coord.next_wait_time()
 
+            logging.info('Next PhotosTask started')
+
             request_url = self._generate_url(user_ids)
             try:
                 response = urlopen(request_url,
@@ -186,5 +188,7 @@ class PhotosTask(threading.Thread):
             if len(rows) > 0:
                 self._database.insert_photos(rows=rows)
                 self._database.mark_processed_profiles(mark_ids=owner_ids)
+
+            logging.info('PhotosTask ended')
 
         logging.info('PhotoTask thread close')
