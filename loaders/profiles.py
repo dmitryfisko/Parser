@@ -46,7 +46,7 @@ class ProfilesLoader(object):
     def cleanup_db(self):
         offset = 0
         while True:
-            rows, scanned_words = self._database.profiles_pagination(
+            rows, scanned_rows = self._database.profiles_pagination(
                 offset, self.PROFILES_CHECK_REQUEST_SIZE, columns=[0, 1, 2])
 
             if len(rows) == 0:
@@ -63,7 +63,7 @@ class ProfilesLoader(object):
                 remove_ids.append(id)
             self._database.remove_profiles(remove_ids)
             offset += len(remove_ids)
-            offset += scanned_words - len(remove_ids)
+            offset += scanned_rows - len(remove_ids)
 
     def _do_search(self, request_url, age, month):
         wait = self._vk_coord.next_wait_time()

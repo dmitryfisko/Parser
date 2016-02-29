@@ -7,7 +7,7 @@ from loaders.vkcoord import VKCoordinator
 class PhotosLoader(object):
     USERS_PER_DB_REQUEST = 24
     QUEUE_MAX_SIZE = 100
-    WORKER_POOL_SIZE = 1
+    WORKER_POOL_SIZE = 10
 
     def __init__(self, database, face_detector, face_representer):
         self._database = database

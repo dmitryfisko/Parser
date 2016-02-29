@@ -4,7 +4,6 @@ import dlib
 import functools
 import time
 from multiprocessing.dummy import RLock
-from multiprocessing.dummy import Pool as ThreadPool
 
 
 def timeit(func):
@@ -26,7 +25,6 @@ class FaceDetector(object):
     SERVER_NO_GUI_MODE = True
 
     def __init__(self):
-        self.USERS_PER_DB_REQUEST = 100
         self._detector = dlib.get_frontal_face_detector()
         pose_predictor_path = '../models/dlib/shape_predictor_68_face_landmarks.dat'
         self._predictor = dlib.shape_predictor(pose_predictor_path)
@@ -72,22 +70,3 @@ class FaceDetector(object):
                 self._win.add_overlay(pose)
             self._win.add_overlay(dets)
             dlib.hit_enter_to_continue()
-
-    def fill_empty_embeddings(self, database):
-        pool = ThreadPool(5)
-
-        offset = 0
-        while True:
-            data, scanned_rows = database.photos_pagination(
-                offset=offset, limit=self.USERS_PER_DB_REQUEST, columns=[1, 5])
-
-            if len(data) == 0:
-                break
-
-            embeddings = pool.starmap(self._detector, data)
-            database.update_embeddings(embeddings)
-
-            offset += scanned_rows
-
-        pool.close()
-        pool.join()
