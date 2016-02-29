@@ -5,9 +5,9 @@ from loaders.vkcoord import VKCoordinator
 
 
 class PhotosLoader(object):
-    USERS_PER_REQUEST = 24
+    USERS_PER_DB_REQUEST = 24
     QUEUE_MAX_SIZE = 100
-    WORKER_POOL_SIZE = 10
+    WORKER_POOL_SIZE = 1
 
     def __init__(self, database, face_detector, face_representer):
         self._database = database
@@ -21,14 +21,15 @@ class PhotosLoader(object):
 
         offset = 0
         while True:
-            user_ids = self._database.profiles_pagination(
-                offset=offset, limit=self.USERS_PER_REQUEST, columns=[0])
+            user_ids, scanned_rows = self._database.profiles_pagination(
+                offset=offset, limit=self.USERS_PER_DB_REQUEST,
+                skip_processed_ids=True, columns=[0])
 
             if len(user_ids) == 0:
                 break
 
             que.put(user_ids)
-            offset += self.USERS_PER_REQUEST
+            offset += scanned_rows
 
         for _ in worker_threads:
             que.put('quit')

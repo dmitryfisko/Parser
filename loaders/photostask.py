@@ -75,7 +75,11 @@ class PhotosTask(threading.Thread):
 
         file_name = owner_id_norm + '_' + photo_id_norm + '.jpg'
         path = directory + '/' + file_name
-        im.save(path)
+        try:
+            im.save(path)
+        except Exception:
+            logging.exception('image saving error')
+            return None
 
         return dirs + '/' + file_name
 
@@ -113,7 +117,7 @@ class PhotosTask(threading.Thread):
                 time.sleep(wait)
                 wait = self._vk_coord.next_wait_time()
 
-            logging.info('Next PhotosTask started')
+            logging.info('Next profiles processing in PhotosTask started')
 
             request_url = self._generate_url(user_ids)
             try:
@@ -189,6 +193,6 @@ class PhotosTask(threading.Thread):
                 self._database.insert_photos(rows=rows)
                 self._database.mark_processed_profiles(mark_ids=owner_ids)
 
-            logging.info('PhotosTask ended')
+            logging.info('Next profiles processing in PhotosTask ended')
 
         logging.info('PhotoTask thread close')
