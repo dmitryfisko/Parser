@@ -5,20 +5,7 @@ import functools
 import time
 from multiprocessing.dummy import RLock
 
-
-def timeit(func):
-    @functools.wraps(func)
-    def new_func(*args, **kwargs):
-        start_time = time.time()
-        results = func(*args, **kwargs)
-        elapsed_time = time.time() - start_time
-        skip_param = 'visualize'
-        if skip_param not in kwargs or not kwargs['visualize']:
-            logging.info('function [{}] finished in {} ms'.format(
-                func.__name__, int(elapsed_time * 1000)))
-        return results
-
-    return new_func
+from decorators import timeit
 
 
 class FaceDetector(object):

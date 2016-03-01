@@ -20,7 +20,7 @@ class ProfilesLoader(object):
     VK_SEARCH_API_URL = 'https://api.vk.com/method/users.search'
     STORAGE_KEY = 'SEARCH_SUCCESS_REQUEST_PARAMS'
     CURR_YEAR = clock.today().year
-    PROFILES_CHECK_REQUEST_SIZE = 10000
+    PROFILES_CHECK_REQUEST_SIZE = 50000
     PROCESSED_COLUMN = False
 
     def __init__(self, database, storage):
@@ -46,7 +46,7 @@ class ProfilesLoader(object):
     def cleanup_db(self):
         offset = 0
         while True:
-            rows, scanned_rows = self._database.profiles_pagination(
+            rows = self._database.profiles_pagination(
                 offset, self.PROFILES_CHECK_REQUEST_SIZE, columns=[0, 1, 2])
 
             if len(rows) == 0:
@@ -61,9 +61,11 @@ class ProfilesLoader(object):
                 logging.warning('Wrong user name: {} {} {}'
                                 .format(id, first_name, last_name))
                 remove_ids.append(id)
+
             self._database.remove_profiles(remove_ids)
-            offset += len(remove_ids)
-            offset += scanned_rows - len(remove_ids)
+            offset += len(rows)
+
+        self._database.clean_wrong_photos()
 
     def _do_search(self, request_url, age, month):
         wait = self._vk_coord.next_wait_time()

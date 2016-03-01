@@ -21,15 +21,15 @@ class PhotosLoader(object):
 
         offset = 0
         while True:
-            user_ids, scanned_rows = self._database.profiles_pagination(
-                offset=offset, limit=self.USERS_PER_DB_REQUEST,
-                skip_processed_ids=True, columns=[0])
+            user_ids = self._database.profiles_pagination(
+                limit=self.USERS_PER_DB_REQUEST, columns=[0],
+                skip_processed_ids=True)
 
             if len(user_ids) == 0:
                 break
 
             que.put(user_ids)
-            offset += scanned_rows
+            offset += len(user_ids)
 
         for _ in worker_threads:
             que.put('quit')

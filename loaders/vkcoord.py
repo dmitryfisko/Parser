@@ -2,7 +2,6 @@ import time
 
 from multiprocessing.dummy import RLock
 
-
 VK_OATH2_URL = 'https://oauth.vk.com/authorize?client_id=5236630&display=page&' \
                'redirect_uri=http://fisko.me/callback&scope=offline,photos&response_type=token'
 VK_ACCESS_TOKEN = '61e5ef4df6828b9445978038b232cc90046cada581f8130bdbf7cbd89f158f273329871769b4bf0af9847'
@@ -12,6 +11,8 @@ VK_CODE = 'https://oauth.vk.com/authorize?client_id=5236630&display=page&redirec
 
 VK_SERVER_ACCESS_TOKEN = 'https://oauth.vk.com/access_token?client_id=5236630&client_secret' \
                          '=jIjD77zlvrN2AnmG0lh5&redirect_uri=https://tjournal.ru/callback&code=440ce6a102c9abdae5'
+
+FACE_SAVE_DIR = '../../faces'
 
 
 class VKCoordinator:

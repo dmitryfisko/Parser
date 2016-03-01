@@ -18,12 +18,11 @@ import numpy as np
 from PIL import Image
 from skimage import io
 
-from loaders.vkcoord import VK_ACCESS_TOKEN
+from loaders.vkcoord import VK_ACCESS_TOKEN, FACE_SAVE_DIR
 
 
 class PhotosTask(threading.Thread):
     VK_PHOTOS_API_URL = 'https://api.vk.com/method/execute.getProfilePhotos'
-    FACE_SAVE_PATH = '../../faces'
     PHOTOS_REQUEST_TIMEOUT = 3
     IMAGE_REQUEST_TIMEOUT = 10
     IMAGES_LOADER_POOL_SIZE = 20
@@ -68,7 +67,7 @@ class PhotosTask(threading.Thread):
         owner_id_norm = '{0:09d}'.format(owner_id)
         photo_id_norm = '{0:010d}'.format(photo_id)
         dirs = '/'.join(re.findall('...', owner_id_norm))
-        directory = self.FACE_SAVE_PATH + '/' + dirs
+        directory = FACE_SAVE_DIR + '/' + dirs
 
         if not os.path.exists(directory):
             os.makedirs(directory)

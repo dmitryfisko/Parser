@@ -1,21 +1,11 @@
-import functools
 import logging
 import time
+from multiprocessing.dummy import RLock
 from operator import itemgetter
 
 import psycopg2
-from multiprocessing.dummy import RLock
 
-
-def synchronized(func):
-    @functools.wraps(func)
-    def wrapper(self, *args, **kwargs):
-        with self._lock:
-            logging.info('Entering in database operation ' + func.__name__)
-            results = func(self, *args, **kwargs)
-        return results
-
-    return wrapper
+from decorators import synchronized
 
 
 class Database(object):
@@ -45,6 +35,7 @@ class Database(object):
             self._cursor.execute(
                 'SELECT * FROM profiles '
                 'WHERE processed = FALSE '
+                'ORDER BY owner_id '
                 'LIMIT {limit} OFFSET {offset}'.format(
                     limit=limit, offset=offset
                 )
@@ -52,6 +43,7 @@ class Database(object):
         else:
             self._cursor.execute(
                 'SELECT * FROM profiles '
+                'ORDER BY owner_id '
                 'LIMIT {limit} OFFSET {offset}'.format(
                     limit=limit, offset=offset
                 )
@@ -59,12 +51,9 @@ class Database(object):
         rows = self._cursor.fetchall()
 
         if columns is None:
-            ret = rows
+            return rows
         else:
-            ret = [itemgetter(*columns)(row) for row in rows]
-
-        scanned_rows = self._cursor.rowcount
-        return ret, scanned_rows
+            return [itemgetter(*columns)(row) for row in rows]
 
     @synchronized
     def remove_profiles(self, remove_ids):
@@ -83,6 +72,17 @@ class Database(object):
                 remove_ids=','.join(rows)
             )
         )
+        logging.info('Deleted {} profiles'.format(self._cursor.rowcount))
+
+    @synchronized
+    def clean_wrong_photos(self):
+        self._cursor.execute(
+            'DELETE FROM photos photo WHERE '
+            'NOT EXISTS (SELECT owner_id FROM profiles profile '
+            'WHERE profile.owner_id=photo.owner_id)'
+        )
+
+        logging.info('Deleted {} photos'.format(self._cursor.rowcount))
 
     @synchronized
     def mark_processed_profiles(self, mark_ids):
@@ -102,28 +102,27 @@ class Database(object):
         )
 
     @synchronized
-    def get_empty_photos_embeddings(self, offset, limit):
+    def get_photos_without_embeddings(self, limit):
         self._cursor.execute(
             'SELECT photo_id, photo_path FROM photos '
-            'WHERE embedding = {0} '
-            'LIMIT {limit} OFFSET {offset}'.format(
-                limit=limit, offset=offset
+            'WHERE embedding = CAST(ARRAY[0] as double precision[]) '
+            'LIMIT {limit}'.format(
+                limit=limit
             )
         )
 
         rows = self._cursor.fetchall()
-        scanned_rows = self._cursor.rowcount
-        return rows, scanned_rows
+        return rows
 
     @synchronized
     def update_embeddings(self, embeddings):
         embeddings = self._transform_input_data(embeddings)
         self._cursor.execute(
-            'UPDATE photos AS photo SET '
-            '    embedding = photo_new.embedding '
+            'UPDATE photos AS photo '
+            'SET embedding = photo_new.embedding '
             'FROM (VALUES {embeddings}) '
-            'AS photo_new(owner_id, embedding) '
-            'WHERE photo_new.owner_id = photo.owner_id'.format(
+            'AS photo_new(photo_id, embedding) '
+            'WHERE photo_new.photo_id = photo.photo_id'.format(
                 embeddings=','.join(embeddings)
             )
         )
