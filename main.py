@@ -17,11 +17,11 @@ if __name__ == '__main__':
     database = Database()
     detector = FaceDetector()
 
-    # representer = FaceRepresenter()
-    ProfilesLoader(database, storage).start()
-    PhotosLoader(database, detector, None).start()
+    representer = FaceRepresenter()
+    # ProfilesLoader(database, storage).start()
+    # PhotosLoader(database, detector, None).start()
 
-    # representer.fill_empty_embeddings(database)
+    representer.fill_empty_embeddings(database)
 
 
     # storage = Storage()

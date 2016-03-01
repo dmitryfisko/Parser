@@ -22,8 +22,8 @@ class PhotosLoader(object):
         offset = 0
         while True:
             user_ids = self._database.profiles_pagination(
-                limit=self.USERS_PER_DB_REQUEST, columns=[0],
-                skip_processed_ids=True)
+                offset=offset, limit=self.USERS_PER_DB_REQUEST,
+                skip_processed_ids=True, columns=[0])
 
             if len(user_ids) == 0:
                 break
