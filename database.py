@@ -56,6 +56,20 @@ class Database(object):
             return [itemgetter(*columns)(row) for row in rows]
 
     @synchronized
+    def get_all_photos(self, columns=None):
+        self._cursor.execute(
+            'SELECT * FROM photos '
+            'WHERE embedding != CAST(ARRAY[0] as double precision[]) '
+            'ORDER BY photo_id'
+        )
+        rows = self._cursor.fetchall()
+
+        if columns is None:
+            return rows
+        else:
+            return [itemgetter(*columns)(row) for row in rows]
+
+    @synchronized
     def remove_profiles(self, remove_ids):
         self._conn.commit()
         if len(remove_ids) == 0:

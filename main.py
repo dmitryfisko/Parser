@@ -21,7 +21,8 @@ if __name__ == '__main__':
     # ProfilesLoader(database, storage).start()
     # PhotosLoader(database, detector, None).start()
 
-    representer.fill_empty_embeddings(database)
+    #representer.fill_empty_embeddings(database)
+    representer.find_closest_face(database, detector)
 
 
     # storage = Storage()

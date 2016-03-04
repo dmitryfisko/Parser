@@ -8,6 +8,7 @@ from multiprocessing.dummy import RLock
 from multiprocessing.dummy import Pool as ThreadPool
 
 from decorators import timeit
+from detector import FaceDetector
 from loaders.vkcoord import FACE_SAVE_DIR
 
 
@@ -27,7 +28,7 @@ class FaceRepresenter(object):
 
     @staticmethod
     def simularity(rep1, rep2):
-        diff = rep1 - rep2
+        diff = np.array(rep1) - np.array(rep2)
         return np.dot(diff, diff)
 
     def represent(self, image, face_box):
@@ -65,3 +66,18 @@ class FaceRepresenter(object):
 
         pool.close()
         pool.join()
+
+    def find_closest_face(self, database, detector):
+        image_path = '../data/test/creator.jpg'
+        image = io.imread(image_path)
+        faces = detector.detect(image)
+        assert len(faces) == 1
+        face_emb = self.represent(image, faces[0]).tolist()
+
+        data = database.get_all_photos(columns=[0, 7])
+        dists = [self.simularity(face_emb, item[1]) for item in data]
+
+        min_dist = max(dists)
+        min_ind = dists.index(min_dist)
+
+        print('Closest face id = {} with {} simularity'.format(data[min_ind][0], min_dist))
