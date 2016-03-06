@@ -3,6 +3,7 @@ import logging
 import re
 import time
 from datetime import date as clock
+import datetime
 from multiprocessing.dummy import Pool as ThreadPool
 
 from urllib import parse as urlparser
@@ -19,7 +20,7 @@ from loaders.vkcoord import VK_ACCESS_TOKEN, VKCoordinator
 class ProfilesLoader(object):
     VK_SEARCH_API_URL = 'https://api.vk.com/method/users.search'
     STORAGE_KEY = 'SEARCH_SUCCESS_REQUEST_PARAMS'
-    CURR_YEAR = clock.today().year
+    CURRENT_YEAR = clock.today().year
     PROFILES_CHECK_REQUEST_SIZE = 50000
     PROCESSED_COLUMN = False
 
@@ -55,13 +56,13 @@ class ProfilesLoader(object):
 
             remove_ids = []
             for row in rows:
-                id, first_name, last_name = row
+                owner_id, first_name, last_name = row
                 if self._check_name(first_name, last_name):
                     continue
 
                 logging.warning('Wrong user name: {} {} {}'
-                                .format(id, first_name, last_name))
-                remove_ids.append(id)
+                                .format(owner_id, first_name, last_name))
+                remove_ids.append(owner_id)
 
             self._database.remove_profiles(remove_ids)
             offset += len(rows)
@@ -112,9 +113,9 @@ class ProfilesLoader(object):
                 bdate = profile['bdate']
                 # string with len less than 8 haven't year
                 if len(bdate) < 8:
-                    bdate += '.' + str(self.CURR_YEAR - age)
+                    bdate += '.' + str(self.CURRENT_YEAR - age)
             except Exception:
-                bdate = '00.%d.%d' % (month, self.CURR_YEAR - age)
+                bdate = '00.%d.%d' % (month, self.CURRENT_YEAR - age)
 
             verified = True if profile['verified'] == 1 else False
             followers_count = profile['followers_count']
@@ -156,7 +157,17 @@ class ProfilesLoader(object):
         return urlparser.urlunparse(url_parts)
 
     def _check_birth_day(self, age, month, day):
-        pass
+        now = datetime.datetime.now()
+        birth_year = self.CURRENT_YEAR - age
+
+        if now.month > month or (now.month == month and now.day > day):
+            birth_year -= 1
+
+        try:
+            datetime.datetime(birth_year, month, day)
+            return True
+        except ValueError:
+            return False
 
     def _get_search_iterator(self):
         # age param in search {65 ... 18}

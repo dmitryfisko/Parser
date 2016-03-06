@@ -27,7 +27,7 @@ class Scheduler(object):
         if self._search_failures > self.MAX_SEARCH_FAILURES:
             with self._lock:
                 start_time = time.time()
-                self._gather_photos_and_compute_emdeddings()
+                self._gather_photos_and_compute_embeddings()
                 elapsed_time = start_time - time.time()
 
                 if elapsed_time < self.MIN_TIME_FOR_RENEW:
@@ -37,7 +37,7 @@ class Scheduler(object):
 
                 self._search_failures = 0
 
-    def _gather_photos_and_compute_emdeddings(self):
+    def _gather_photos_and_compute_embeddings(self):
         logging.info('Photos loading started')
         PhotosLoader(self._database, self._detector).start()
         logging.info('Photos loading started finished')
@@ -51,4 +51,4 @@ class Scheduler(object):
         ProfilesLoader(self._database, self._storage, self).start()
         logging.info('Scheduler finished work')
 
-        self._gather_photos_and_compute_emdeddings()
+        self._gather_photos_and_compute_embeddings()
