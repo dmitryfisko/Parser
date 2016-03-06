@@ -27,13 +27,12 @@ class PhotosTask(threading.Thread):
     IMAGE_REQUEST_TIMEOUT = 10
     IMAGES_LOADER_POOL_SIZE = 20
 
-    def __init__(self, que, vk_coord, database, face_detector, face_representer):
+    def __init__(self, que, vk_coord, database, face_detector):
         threading.Thread.__init__(self)
         self._queue = que
         self._vk_coord = vk_coord
         self._database = database
         self._detector = face_detector
-        self._representer = face_representer
 
     class Photo(object):
         pass
@@ -170,10 +169,7 @@ class PhotosTask(threading.Thread):
                     photo.boundary = [face.top(), face.right(), face.bottom(), face.left()]
                     photo.path = self._save_face(
                         image, face, photo.owner_id, photo.photo_id)
-                    if self._representer is not None:
-                        photo.embedding = self._representer.represent(image, face)
-                    else:
-                        photo.embedding = np.array([0.])
+                    photo.embedding = [0.]
                 else:
                     photo.boundary = None
 
@@ -185,7 +181,7 @@ class PhotosTask(threading.Thread):
                 row = (
                     photo.owner_id, photo.photo_id, photo.likes,
                     photo.date, photo.boundary, photo.path,
-                    photo.url, photo.embedding.tolist()
+                    photo.url, photo.embedding
                 )
                 rows.append(row)
             if len(rows) > 0:

@@ -1,3 +1,4 @@
+import logging
 import os
 from skimage import io
 
@@ -14,7 +15,7 @@ from loaders.vkcoord import FACE_SAVE_DIR
 
 class FaceRepresenter(object):
     NET_INPUT_DIM = 96
-    MODEL_DIR = '../openface/models'
+    MODEL_DIR = '/home/dima/libs/openface/models'
     USERS_PER_DB_REQUEST = 10
 
     def __init__(self):
@@ -67,6 +68,7 @@ class FaceRepresenter(object):
         pool.close()
         pool.join()
 
+    # very slow implementation
     def find_closest_face(self, database, detector):
         image_path = '../data/test/creator.jpg'
         image = io.imread(image_path)
@@ -77,7 +79,8 @@ class FaceRepresenter(object):
         data = database.get_all_photos(columns=[0, 7])
         dists = [self.simularity(face_emb, item[1]) for item in data]
 
-        min_dist = max(dists)
+        min_dist = min(dists)
         min_ind = dists.index(min_dist)
 
-        print('Closest face id = {} with {} simularity'.format(data[min_ind][0], min_dist))
+        logging.info('Closest face id = {} with {} simularity'
+                     .format(data[min_ind][0], min_dist))

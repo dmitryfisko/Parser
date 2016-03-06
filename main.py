@@ -6,6 +6,7 @@ from loaders.photos import PhotosLoader
 from loaders.profiles import ProfilesLoader
 # from representer import FaceRepresenter
 from representer import FaceRepresenter
+from scheduler import Scheduler
 from storage import Storage
 
 if __name__ == '__main__':
@@ -16,16 +17,9 @@ if __name__ == '__main__':
     storage = Storage()
     database = Database()
     detector = FaceDetector()
-
     representer = FaceRepresenter()
-    # ProfilesLoader(database, storage).start()
-    # PhotosLoader(database, detector, None).start()
 
-    #representer.fill_empty_embeddings(database)
+    scheduler = Scheduler(database, storage, detector, representer)
+    scheduler.start()
+
     representer.find_closest_face(database, detector)
-
-
-    # storage = Storage()
-    # representer = FaceRepresenter()
-    # PhotosLoader(database, None, None).start()
-    # ProfilesLoader(database, storage).start()

@@ -23,9 +23,10 @@ class ProfilesLoader(object):
     PROFILES_CHECK_REQUEST_SIZE = 50000
     PROCESSED_COLUMN = False
 
-    def __init__(self, database, storage):
+    def __init__(self, database, storage, scheduler):
         self._database = database
         self._storage = storage
+        self._scheduler = scheduler
         self._vk_coord = VKCoordinator()
 
     @staticmethod
@@ -67,11 +68,13 @@ class ProfilesLoader(object):
 
         self._database.clean_wrong_photos()
 
-    def _do_search(self, request_url, age, month):
+    def _do_search(self, request_url, age, month, day):
         wait = self._vk_coord.next_wait_time()
         while wait != 0:
             time.sleep(wait)
             wait = self._vk_coord.next_wait_time()
+
+        self._scheduler.schedule()
 
         try:
             response = urlopen(request_url).read()
@@ -92,6 +95,9 @@ class ProfilesLoader(object):
         except Exception:
             logging.exception("Profiles request unknown exception")
             data = []
+
+        if data:
+            self._scheduler.handle_search_failure()
 
         rows = []
         for profile in data:
@@ -124,17 +130,18 @@ class ProfilesLoader(object):
 
         if len(rows) == 0:
             logging.warning(
-                'Profiles got empty response for age {} month {}'.format(age, month))
+                'Profiles got empty response for age {} month {} day {}'.format(age, month, day))
             return
 
         self._database.insert_profiles(rows)
-        self._storage.add_to_key(self.STORAGE_KEY, (age, month), value_type=set)
+        self._storage.add_to_key(self.STORAGE_KEY, (age, month, day), value_type=set)
 
         logging.info('Profiles with age {} month {} processed'.format(age, month))
 
-    def _generate_url(self, age, month):
+    def _generate_url(self, age, month, day):
         params = {'age_from': age, 'age_to': age, 'sort': 0,
-                  'birth_month': month, 'count': 1000, 'has_photo': 1,
+                  'birth_month': month, 'birth_day': day,
+                  'count': 1000, 'has_photo': 1,
                   'fields': 'bdate,screen_name,sex,verified,'
                             'last_seen,followers_count,country,city',
                   'v': '5.45', 'access_token': VK_ACCESS_TOKEN}
@@ -148,14 +155,21 @@ class ProfilesLoader(object):
         print(urlparser.urlunparse(url_parts))
         return urlparser.urlunparse(url_parts)
 
+    def _check_birth_day(self, age, month, day):
+        pass
+
     def _get_search_iterator(self):
         # age param in search {65 ... 18}
+        # birth, month param in search {12 ... 1}
+        # birth_day param in search {31 ... 1}
         for age in range(65, 17, -1):
-            # month param in search {12 ... 1}
             for month in range(12, 0, -1):
-                if (age, month) in self._storage[self.STORAGE_KEY]:
-                    continue
-                yield (self._generate_url(age, month), age, month)
+                for day in range(31, 0, -1):
+                    if not self._check_birth_day(age, month, day):
+                        continue
+                    if (age, month, day) in self._storage[self.STORAGE_KEY]:
+                        continue
+                    yield (self._generate_url(age, month, day), age, month, day)
 
     def start(self):
         pool = ThreadPool(5)

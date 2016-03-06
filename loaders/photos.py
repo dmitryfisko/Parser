@@ -9,9 +9,8 @@ class PhotosLoader(object):
     QUEUE_MAX_SIZE = 100
     WORKER_POOL_SIZE = 10
 
-    def __init__(self, database, face_detector, face_representer):
+    def __init__(self, database, face_detector):
         self._database = database
-        self._representer = face_representer
         self._detector = face_detector
         self._vk_coord = VKCoordinator()
 
@@ -39,8 +38,8 @@ class PhotosLoader(object):
     def _build_worker_pool(self, que, size):
         workers = []
         for _ in range(size):
-            worker = PhotosTask(que, self._vk_coord, self._database,
-                                self._detector, self._representer)
+            worker = PhotosTask(que, self._vk_coord,
+                                self._database, self._detector)
             worker.start()
             workers.append(worker)
         return workers
