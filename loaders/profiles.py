@@ -10,7 +10,7 @@ from urllib import parse as urlparser
 from urllib.request import urlopen
 from urllib.parse import urlencode
 
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 from _socket import timeout
 from http.client import HTTPException
 
@@ -22,6 +22,7 @@ class ProfilesLoader(object):
     STORAGE_KEY = 'SEARCH_SUCCESS_REQUEST_PARAMS'
     CURRENT_YEAR = clock.today().year
     PROFILES_CHECK_REQUEST_SIZE = 50000
+    PROFILES_LOADER_POOL_SIZE = 5
     PROCESSED_COLUMN = False
 
     def __init__(self, database, storage, scheduler):
@@ -93,11 +94,14 @@ class ProfilesLoader(object):
         except timeout:
             logging.error("Profiles request timeout")
             data = []
+        except URLError:
+            logging.error("Profiles request URLError")
+            data = []
         except Exception:
             logging.exception("Profiles request unknown exception")
             data = []
 
-        if data:
+        if not data:
             self._scheduler.handle_search_failure()
 
         rows = []
@@ -137,7 +141,7 @@ class ProfilesLoader(object):
         self._database.insert_profiles(rows)
         self._storage.add_to_key(self.STORAGE_KEY, (age, month, day), value_type=set)
 
-        logging.info('Profiles with age {} month {} processed'.format(age, month))
+        logging.info('Profiles with age {} month {} day {} processed'.format(age, month, day))
 
     def _generate_url(self, age, month, day):
         params = {'age_from': age, 'age_to': age, 'sort': 0,
@@ -183,13 +187,10 @@ class ProfilesLoader(object):
                     yield (self._generate_url(age, month, day), age, month, day)
 
     def start(self):
-        pool = ThreadPool(5)
+        pool = ThreadPool(self.PROFILES_LOADER_POOL_SIZE)
 
         pool.starmap(self._do_search,
                      self._get_search_iterator())
 
         pool.close()
         pool.join()
-
-        self.cleanup_db()
-        self._storage.save()

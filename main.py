@@ -2,9 +2,6 @@ import logging
 
 from database import Database
 from detector import FaceDetector
-from loaders.photos import PhotosLoader
-from loaders.profiles import ProfilesLoader
-# from representer import FaceRepresenter
 from representer import FaceRepresenter
 from scheduler import Scheduler
 from storage import Storage

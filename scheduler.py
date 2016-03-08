@@ -16,6 +16,8 @@ class Scheduler(object):
         self._storage = storage
         self._detector = detector
         self._representer = representer
+        self._profiles_loader = \
+            ProfilesLoader(self._database, self._storage, self)
 
         self._lock = RLock()
         self._search_failures = 0
@@ -38,6 +40,9 @@ class Scheduler(object):
                 self._search_failures = 0
 
     def _gather_photos_and_compute_embeddings(self):
+        self._profiles_loader.cleanup_db()
+        self._storage.save_state()
+
         logging.info('Photos loading started')
         PhotosLoader(self._database, self._detector).start()
         logging.info('Photos loading started finished')
@@ -48,7 +53,7 @@ class Scheduler(object):
 
     def start(self):
         logging.info('Scheduler started work')
-        ProfilesLoader(self._database, self._storage, self).start()
+        self._profiles_loader.start()
         logging.info('Scheduler finished work')
 
         self._gather_photos_and_compute_embeddings()

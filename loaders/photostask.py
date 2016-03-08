@@ -10,7 +10,7 @@ from urllib import parse as urlparser
 from urllib.request import urlopen
 from urllib.parse import urlencode
 
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 from _socket import timeout
 from http.client import HTTPException
 
@@ -23,7 +23,7 @@ from loaders.vkcoord import VK_ACCESS_TOKEN, FACE_SAVE_DIR
 
 class PhotosTask(threading.Thread):
     VK_PHOTOS_API_URL = 'https://api.vk.com/method/execute.getProfilePhotos'
-    PHOTOS_REQUEST_TIMEOUT = 3
+    PHOTOS_REQUEST_TIMEOUT = 5
     IMAGE_REQUEST_TIMEOUT = 10
     IMAGES_LOADER_POOL_SIZE = 20
 
@@ -49,11 +49,17 @@ class PhotosTask(threading.Thread):
         except timeout:
             logging.warning('Image downloading timeout')
             return None
+        except URLError:
+            logging.warning('Image downloading URLError')
+            return None
+        except ConnectionResetError:
+            logging.warning('Image downloading ConnectionResetError')
+            return None
         except Exception:
             logging.exception('Image downloading unknown error')
             return None
 
-        if len(image.shape) != 3 or (image.shape[2] not in [3, 4]):
+        if len(image.shape) != 3 or image.shape[2] != 3:
             logging.warning('Downloaded image has wrong image depth')
             return None
 
@@ -134,6 +140,9 @@ class PhotosTask(threading.Thread):
                 users_photos = []
             except timeout:
                 logging.error("Photos request timeout")
+                users_photos = []
+            except URLError:
+                logging.error("Photos request URLError")
                 users_photos = []
             except Exception:
                 logging.exception("Photos request unknown exception")

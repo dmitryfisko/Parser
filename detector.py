@@ -31,7 +31,13 @@ class FaceDetector(object):
             return []
 
         with self._lock:
-            dets, scores, idx = self._detector.run(image)
+            try:
+                dets, scores, idx = self._detector.run(image)
+            except:
+                logging.exception('detector exception')
+                logging.warning(str(image.shape))
+                logging.warning(str(image))
+
             poses = []
             if landmarks:
                 for det in dets:

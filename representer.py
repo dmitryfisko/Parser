@@ -15,7 +15,7 @@ from loaders.vkcoord import FACE_SAVE_DIR
 
 class FaceRepresenter(object):
     NET_INPUT_DIM = 96
-    MODEL_DIR = '/home/dima/libs/openface/models'
+    MODEL_DIR = '../openface/models'
     USERS_PER_DB_REQUEST = 10
 
     def __init__(self):
