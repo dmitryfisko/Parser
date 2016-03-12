@@ -17,7 +17,7 @@ from http.client import HTTPException
 from loaders.vkcoord import VK_ACCESS_TOKEN, VKCoordinator
 
 
-class ProfilesLoader(object):
+class ProfilesLoader:
     VK_SEARCH_API_URL = 'https://api.vk.com/method/users.search'
     STORAGE_KEY = 'SEARCH_SUCCESS_REQUEST_PARAMS'
     CURRENT_YEAR = clock.today().year

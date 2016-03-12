@@ -8,7 +8,7 @@ from multiprocessing.dummy import RLock
 from decorators import timeit
 
 
-class FaceDetector(object):
+class FaceDetector:
     SERVER_NO_GUI_MODE = True
 
     def __init__(self):

@@ -4,7 +4,7 @@ from loaders.photostask import PhotosTask
 from loaders.vkcoord import VKCoordinator
 
 
-class PhotosLoader(object):
+class PhotosLoader:
     USERS_PER_DB_REQUEST = 24
     QUEUE_MAX_SIZE = 100
     WORKER_POOL_SIZE = 10

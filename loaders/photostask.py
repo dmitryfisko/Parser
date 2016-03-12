@@ -34,7 +34,7 @@ class PhotosTask(threading.Thread):
         self._database = database
         self._detector = face_detector
 
-    class Photo(object):
+    class Photo:
         pass
 
     def _download_image(self, url):

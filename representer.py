@@ -13,7 +13,7 @@ from detector import FaceDetector
 from loaders.vkcoord import FACE_SAVE_DIR
 
 
-class FaceRepresenter(object):
+class FaceRepresenter:
     NET_INPUT_DIM = 96
     MODEL_DIR = '../openface/models'
     USERS_PER_DB_REQUEST = 10

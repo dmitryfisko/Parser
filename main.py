@@ -16,7 +16,8 @@ if __name__ == '__main__':
     detector = FaceDetector()
     representer = FaceRepresenter()
 
+    representer.find_closest_face(database, detector)
+
     scheduler = Scheduler(database, storage, detector, representer)
     scheduler.start()
 
-    representer.find_closest_face(database, detector)

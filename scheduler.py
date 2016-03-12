@@ -7,7 +7,7 @@ from loaders.photos import PhotosLoader
 from loaders.profiles import ProfilesLoader
 
 
-class Scheduler(object):
+class Scheduler:
     MIN_TIME_FOR_RENEW = 10800  # in seconds = 3 hours
     MAX_SEARCH_FAILURES = PhotosLoader.WORKER_POOL_SIZE * 2
 
@@ -30,7 +30,7 @@ class Scheduler(object):
             with self._lock:
                 start_time = time.time()
                 self._gather_photos_and_compute_embeddings()
-                elapsed_time = start_time - time.time()
+                elapsed_time = time.time() - start_time
 
                 if elapsed_time < self.MIN_TIME_FOR_RENEW:
                     sleep_time = self.MIN_TIME_FOR_RENEW - elapsed_time

@@ -2,7 +2,7 @@ import os
 import pickle
 
 
-class Storage(object):
+class Storage:
     STORAGE_PATH = 'storage.dat'
 
     def __init__(self):
@@ -42,6 +42,6 @@ class Storage(object):
         else:
             return None
 
-    def save(self):
+    def save_state(self):
         with open(self.STORAGE_PATH, 'wb') as f:
             pickle.dump(self._container, f)

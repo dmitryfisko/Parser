@@ -8,7 +8,7 @@ import psycopg2
 from decorators import synchronized
 
 
-class Database(object):
+class Database:
     PROFILES_FIELDS = ['owner_id', 'first_name', 'last_name', 'sex',
                        'screen_name', 'last_seen', 'bdate', 'verified',
                        'followers_count', 'country', 'city', 'processed']
