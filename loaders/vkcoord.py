@@ -4,7 +4,7 @@ from multiprocessing.dummy import RLock
 
 VK_OATH2_URL = 'https://oauth.vk.com/authorize?client_id=5236630&display=page&' \
                'redirect_uri=http://fisko.me/callback&scope=offline,photos&response_type=token'
-VK_ACCESS_TOKEN = '61e5ef4df6828b9445978038b232cc90046cada581f8130bdbf7cbd89f158f273329871769b4bf0af9847'
+VK_ACCESS_TOKEN = 'RENEW_TOKEN'
 
 VK_CODE = 'https://oauth.vk.com/authorize?client_id=5236630&display=page&redirect_uri=' \
           'https://tjournal.ru/callback&scope=photos,%20offline&response_type=code&v=5.45'
