@@ -13,13 +13,17 @@ class PhotosLoader:
         self._database = database
         self._detector = face_detector
         self._vk_coord = VKCoordinator()
+        self._task_canceled = False
+
+    def cancel_task(self):
+        self._task_canceled = True
 
     def start(self):
         que = queue.Queue(maxsize=self.QUEUE_MAX_SIZE)
         worker_threads = self._build_worker_pool(que, self.WORKER_POOL_SIZE)
 
         offset = 0
-        while True:
+        while True and not self._task_canceled:
             user_ids = self._database.profiles_pagination(
                 offset=offset, limit=self.USERS_PER_DB_REQUEST,
                 skip_processed_ids=True, columns=[0])

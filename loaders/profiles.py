@@ -30,6 +30,10 @@ class ProfilesLoader:
         self._storage = storage
         self._scheduler = scheduler
         self._vk_coord = VKCoordinator()
+        self._task_canceled = False
+
+    def cancel_task(self):
+        self._task_canceled = True
 
     @staticmethod
     def _check_name(first_name, last_name):
@@ -71,6 +75,9 @@ class ProfilesLoader:
         self._database.clean_wrong_photos()
 
     def _do_search(self, request_url, age, month, day):
+        if self._task_canceled:
+            return
+
         wait = self._vk_coord.next_wait_time()
         while wait != 0:
             time.sleep(wait)

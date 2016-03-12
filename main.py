@@ -1,4 +1,5 @@
 import logging
+import signal
 
 from database import Database
 from detector import FaceDetector
@@ -16,8 +17,9 @@ if __name__ == '__main__':
     detector = FaceDetector()
     representer = FaceRepresenter()
 
-    representer.find_closest_face(database, detector)
+    # representer.find_closest_face(database, detector)
 
     scheduler = Scheduler(database, storage, detector, representer)
+    signal.signal(signal.SIGINT, scheduler.cancel_tasks)
     scheduler.start()
 

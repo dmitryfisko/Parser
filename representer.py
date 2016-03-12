@@ -26,6 +26,10 @@ class FaceRepresenter:
         self._align = openface.AlignDlib(dlib_model_path)
         self._net = openface.TorchNeuralNet(openface_model_path, self.NET_INPUT_DIM)
         self._lock = RLock()
+        self._task_canceled = False
+
+    def cancel_task(self):
+        self._task_canceled = True
 
     @staticmethod
     def simularity(rep1, rep2):
@@ -55,7 +59,7 @@ class FaceRepresenter:
     def fill_empty_embeddings(self, database):
         pool = ThreadPool(5)
 
-        while True:
+        while True and not self._task_canceled:
             data = database.get_photos_without_embeddings(
                 limit=self.USERS_PER_DB_REQUEST)
 

@@ -3,6 +3,8 @@ from multiprocessing.dummy import RLock
 
 import time
 
+import sys
+
 from loaders.photos import PhotosLoader
 from loaders.profiles import ProfilesLoader
 
@@ -18,12 +20,22 @@ class Scheduler:
         self._representer = representer
         self._profiles_loader = \
             ProfilesLoader(self._database, self._storage, self)
+        self._photos_loader = \
+            PhotosLoader(self._database, self._detector)
+
 
         self._lock = RLock()
         self._search_failures = 0
 
     def handle_search_failure(self):
         self._search_failures += 1
+
+    def cancel_tasks(self, signal, frame):
+        logging.warning('KeyboardInterrupt occurred, thread closing started...')
+        self._profiles_loader.cancel_task()
+        self._photos_loader.cancel_task()
+        self._representer.cancel_task()
+        sys.exit(0)
 
     def schedule(self):
         if self._search_failures > self.MAX_SEARCH_FAILURES:
@@ -44,7 +56,7 @@ class Scheduler:
         self._storage.save_state()
 
         logging.info('Photos loading started')
-        PhotosLoader(self._database, self._detector).start()
+        self._photos_loader.start()
         logging.info('Photos loading started finished')
 
         logging.info('Filling empty embeddings')
